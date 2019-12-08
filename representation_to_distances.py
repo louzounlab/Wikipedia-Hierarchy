@@ -1,13 +1,27 @@
+import configparser
 import numpy as np
-from scipy.spatial.distance import cdist, euclidean, cityblock, mahalanobis
+from scipy.spatial.distance import cdist, euclidean, mahalanobis, hamming, cityblock, sqeuclidean, \
+    correlation“
 from itertools import combinations, product
 import os
 import pickle
 import matplotlib.pyplot as plt
+from scipy.stats import f_oneway
+import label_data_small_graph
+
+config = configparser.ConfigParser()
+config.read('conf.ini')
+DIMENSION = int(config['ARGUMENTS']['dimensions'])
+TREE_LEN = int(config['ARGUMENTS']['tree_len'])
+SAME_GROUP = (0, 0)
+SAME_DEPTH_NOT_EQUAL = (1, 1)
+MOST_DIFFERENT = (TREE_LEN, TREE_LEN, 0)
+
 plt.style.use('seaborn-deep')
 
 
 def distances_distribution():
+    a = []
     ae_matrix = read_ae_matrix()
     sets_for_communities = organize_sets()
     labels_dict = pickle.load(open(os.path.join('small_graph', "labels.pkl"), 'rb'))
@@ -20,54 +34,39 @@ def distances_distribution():
         indices = [node_to_matrix_row[str(i)] for i in s[:-1]]
         submatrices.append((ae_matrix[indices, :], s[-1]))
     covariance_matrix = np.cov(ae_matrix.transpose())
-    metrics = ['euclidean', 'cityblock', 'mahalanobis']
+    metrics = ['euclidean', 'mahalanobis', 'hamming', 'cityblock', 'sqeuclidean', 'correlation']
     methods = ['min', 'max', 'avg', 'centroid']
-    fig, ax = plt.subplots(4, 4, figsize=(12, 10))
+    fig, ax = plt.subplots(7, 4, figsize=(12, 10))
 
     pairs_of_sets = to_pairs(submatrices, labels_dict)
     for j in range(4):
         ax[0, j].axis('off')
-    for i, j in product(range(3), range(4)):
+    for i, j in product(range(6), range(4)):
         calc_distances_1 = []
         calc_distances_2 = []
         calc_distances_3 = []
 
         for (m_1, m_2), dist in pairs_of_sets:
             d = ae_to_distance(m_1, m_2, metric=metrics[i], method=methods[j], cov=covariance_matrix)
-            if dist == (0, 0, 2):
+            if dist == SAME_GROUP + (2,):
                 calc_distances_1.append(d)
-            elif dist == (1, 1, 1):
+            elif dist == SAME_DEPTH_NOT_EQUAL + (1,):
                 calc_distances_2.append(d)
-            elif dist == (2, 2, 0):
+            elif dist == MOST_DIFFERENT:
                 calc_distances_3.append(d)
             else:
                 raise ValueError("Some wierd distance:", dist)
 
         all_distances = calc_distances_1 + calc_distances_2 + calc_distances_3
+        a += all_distances
         bins = np.linspace(min(all_distances) - 0.1, max(all_distances) + 0.1, 20)
         ax[i + 1, j].hist([calc_distances_1, calc_distances_2, calc_distances_3], bins,
                           label=['same', 'different near', 'different far'])
         ax[i + 1, j].set_title('%s, %s' % (metrics[i], methods[j]), fontsize=10)
         ax[i + 1, j].legend(loc="upper right", fontsize=8)
-    plt.suptitle('Deviations of the predicted distances from the actual distances', y=0.85)
+    plt.suptitle('Deviations of the predicted distances from the actual distances', y=0.95)
     plt.tight_layout(pad=0.5, h_pad=0.6, w_pad=1.25)
     plt.savefig("deviations_histogram.png")
-
-
-def remove_problematic_vertices(abstract_algebra, binary_arithmetic, computer_arithmetic, linear_algebra):
-    abstract_algebra_problematics = [974640, 1063837, 799928, 34555841, 763574, 1547431]
-    binary_arithmetic_problematics = [27149736]
-    computer_arithmetic_problematics = []
-    linear_algebra_problematics = [7409974, 22834535, 34559423]
-    for i in abstract_algebra_problematics:
-        abstract_algebra.remove(i)
-    for j in binary_arithmetic_problematics:
-        binary_arithmetic.remove(j)
-    for k in computer_arithmetic_problematics:
-        computer_arithmetic.remove(k)
-    for m in linear_algebra_problematics:
-        linear_algebra.remove(m)
-    return abstract_algebra, binary_arithmetic, computer_arithmetic, linear_algebra
 
 
 def organize_sets():
@@ -77,8 +76,6 @@ def organize_sets():
     binary_arithmetic = pickle.load(open(os.path.join('small_graph', 'BinaryArithmeticIDs.pkl'), 'rb'))
     computer_arithmetic = pickle.load(open(os.path.join('small_graph', 'ComputerArithmeticIDs.pkl'), 'rb'))
     linear_algebra = pickle.load(open(os.path.join('small_graph', 'LinearAlgebraIDs.pkl'), 'rb'))
-    abstract_algebra, binary_arithmetic, computer_arithmetic, linear_algebra = remove_problematic_vertices(
-        abstract_algebra, binary_arithmetic, computer_arithmetic, linear_algebra)
 
     abstract_algebra_subsets = create_subsets(abstract_algebra)
     binary_arithmetic_subsets = create_subsets(binary_arithmetic)
@@ -87,13 +84,13 @@ def organize_sets():
 
     sets_and_labels = []
     for s in abstract_algebra_subsets:
-        sets_and_labels.append(s + [3])
+        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["AbstractAlgebra"]])
     for s in binary_arithmetic_subsets:
-        sets_and_labels.append(s + [5])
+        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["BinaryArithmetic"]])
     for s in computer_arithmetic_subsets:
-        sets_and_labels.append(s + [6])
+        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["ComputerArithmetic"]])
     for s in linear_algebra_subsets:
-        sets_and_labels.append(s + [4])
+        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["LinearAlgebra"]])
     return sets_and_labels
 
 
@@ -132,12 +129,12 @@ def read_ae_matrix():
     ae_lol = []  # list of lists
     for line in ae_file.readlines():
         ln = line.split(" ")
-        if len(ln) == 8:
+        if len(ln) == DIMENSION + 1:
             to_append = []
             for ind, val in enumerate(ln):
                 if ind == 0:
                     to_append.append(int(val))
-                elif ind == 7:
+                elif ind == DIMENSION:
                     val = val[:-1]
                     to_append.append(float(val))
                 else:
@@ -149,7 +146,7 @@ def read_ae_matrix():
 
 def ae_to_distance(mat1, mat2, metric='euclidean', method='avg', cov=None):
     # Methods: min, max, avg, centroid
-    # Metrics: Euclidean, Manhattan (Cityblock), Mahalanobis (requires a covariance matrix)
+    # Metrics: Euclidean, Manhattan (Cityblock), Mahalanobis (requires a covariance matrix) ,Add: Maximum
     if not method == 'centroid':
         vec_dist = cdist(mat1, mat2, metric=metric)
         if method == 'min':
@@ -167,26 +164,23 @@ def ae_to_distance(mat1, mat2, metric='euclidean', method='avg', cov=None):
             calc_dist = euclidean(cent_1, cent_2)
         elif metric == 'cityblock':
             calc_dist = cityblock(cent_1, cent_2)
+        elif metric == 'hamming':
+            calc_dist = hamming(cent_1, cent_2)
+        elif metric == 'correlation':
+            calc_dist = correlation(cent_1, cent_2)
+        elif metric == 'cityblock':
+            calc_dist = cityblock(cent_1, cent_2)
+        elif metric == 'sqeuclidean':
+            calc_dist = sqeuclidean(cent_1, cent_2)
         elif metric == 'mahalanobis':
             if cov is None:
                 raise ValueError("Insert covariance matrix")
             calc_dist = mahalanobis(cent_1, cent_2, VI=np.linalg.inv(cov))
         else:
             raise ValueError("Wrong name of metric")
+
     return calc_dist
 
 
 if __name__ == '__main__':
-    # m1 = np.array([[1, 2], [3, 4], [5, 6]])
-    # m2 = np.array([[2, 3], [-1, 4]])
-    # y_t = (1, 2, 3)
-    # for metr, meth in product(['euclidean', 'cityblock', 'mahalanobis'], ['min', 'max', 'avg', 'centroid']):
-    #     print("Metric:", metr, "\nMethod:", meth)
-    #     if metr == 'mahalanobis':
-    #         covariance = np.eye(2)
-    #     else:
-    #         covariance = None
-    #     ae_to_distance(m1, m2, y_t, metric=metr, method=meth, cov=covariance)
-    #     print("\n")
     distances_distribution()
-

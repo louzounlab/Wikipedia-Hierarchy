@@ -1,2 +1,15 @@
 # Wikipedia-Hierarchy
-Building a model based on Wikipedia's hierarchy data to define metric on graph groups based on a connected tree
+Building a model based on Wikipedia's hierarchy data to define metric on graph groups based on a connected tree.
+
+Useage:
+
+In order to load data, use enwiki.dump - explanation can be found in pdf.
+
+optional: 
+Creating the groups can be done using "create_groups.py", when data is in local mysql-server.
+Use create_graph, create_tree in order to create the needed structures.
+
+AfterWards, project the graph using "projections.py" file. dimensions can be changed in configuration "conf.ini"
+Use "labels_data" to create labels from the tree.
+use the model "representaion to distances" to get the results showing in "deviations_hostpgram".
+

@@ -1,7 +1,8 @@
 import configparser
 import numpy as np
 from scipy.spatial.distance import cdist, euclidean, mahalanobis, hamming, cityblock, sqeuclidean, \
-    correlation“
+    correlation
+import pandas as pd
 from itertools import combinations, product
 import os
 import pickle
@@ -34,14 +35,17 @@ def distances_distribution():
         indices = [node_to_matrix_row[str(i)] for i in s[:-1]]
         submatrices.append((ae_matrix[indices, :], s[-1]))
     covariance_matrix = np.cov(ae_matrix.transpose())
-    metrics = ['euclidean', 'mahalanobis', 'hamming', 'cityblock', 'sqeuclidean', 'correlation']
+    metrics = ['euclidean', 'mahalanobis', 'cityblock', 'sqeuclidean', 'correlation']
     methods = ['min', 'max', 'avg', 'centroid']
-    fig, ax = plt.subplots(7, 4, figsize=(12, 10))
+    fig, ax = plt.subplots(6, 4, figsize=(12, 10))
 
     pairs_of_sets = to_pairs(submatrices, labels_dict)
     for j in range(4):
         ax[0, j].axis('off')
-    for i, j in product(range(6), range(4)):
+    for i, j in product(range(5), range(4)):
+        s1 = 0
+        s2 = 0
+        # for w in range(10):
         calc_distances_1 = []
         calc_distances_2 = []
         calc_distances_3 = []
@@ -59,38 +63,40 @@ def distances_distribution():
 
         all_distances = calc_distances_1 + calc_distances_2 + calc_distances_3
         a += all_distances
+        # print(all_distances)
         bins = np.linspace(min(all_distances) - 0.1, max(all_distances) + 0.1, 20)
         ax[i + 1, j].hist([calc_distances_1, calc_distances_2, calc_distances_3], bins,
                           label=['same', 'different near', 'different far'])
         ax[i + 1, j].set_title('%s, %s' % (metrics[i], methods[j]), fontsize=10)
         ax[i + 1, j].legend(loc="upper right", fontsize=8)
+        # print("calc1: ", len(calc_distances_1), "calc2: ", len(calc_distances_2), "calc3: ", len(calc_distances_3))
+        # print("calc1: ", calc_distances_1, "calc2: ", calc_distances_2, "calc3: ", calc_distances_3)
+        f_val, p_score = f_oneway(calc_distances_1, calc_distances_2, calc_distances_3)
+        s1 += f_val
+        s2 += p_score
+        ###print(i, j, "values:", s1 / 10, s2 / 10)
+    # print(a)
     plt.suptitle('Deviations of the predicted distances from the actual distances', y=0.95)
     plt.tight_layout(pad=0.5, h_pad=0.6, w_pad=1.25)
     plt.savefig("deviations_histogram.png")
 
 
-def organize_sets():
-    # discipline_to_idx = {"Math": 0, "Algebra": 1, "Arithmetics": 2, "AbstractAlgebra": 3, "LinearAlgebra": 4,
-    #                      "BinaryArithmetic": 5, "ComputerArithmetic": 6}
-    abstract_algebra = pickle.load(open(os.path.join('small_graph', 'AbstractAlgebraIDs.pkl'), 'rb'))
-    binary_arithmetic = pickle.load(open(os.path.join('small_graph', 'BinaryArithmeticIDs.pkl'), 'rb'))
-    computer_arithmetic = pickle.load(open(os.path.join('small_graph', 'ComputerArithmeticIDs.pkl'), 'rb'))
-    linear_algebra = pickle.load(open(os.path.join('small_graph', 'LinearAlgebraIDs.pkl'), 'rb'))
 
-    abstract_algebra_subsets = create_subsets(abstract_algebra)
-    binary_arithmetic_subsets = create_subsets(binary_arithmetic)
-    computer_arithmetic_subsets = create_subsets(computer_arithmetic)
-    linear_algebra_subsets = create_subsets(linear_algebra)
+def organize_sets():
+    '''group labled is in the form of:  [ (1, [7,5,9,6] ), (2, [88, 95,3,2), ..... ], which is list of tuples, each tuple contains the group lable from the tree
+    in the 0 index, the group nodes list in the second index'''
+    with open('metric_list.pkl', 'rb') as f:
+        groups_labeled = pickle.load(f)
+
+    groups_subsets = []
+    for group in groups_labeled:
+        groups_subset = create_subsets(group[1])
+        for subset in groups_subset:
+            groups_subsets.append((group[0], subset))
 
     sets_and_labels = []
-    for s in abstract_algebra_subsets:
-        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["AbstractAlgebra"]])
-    for s in binary_arithmetic_subsets:
-        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["BinaryArithmetic"]])
-    for s in computer_arithmetic_subsets:
-        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["ComputerArithmetic"]])
-    for s in linear_algebra_subsets:
-        sets_and_labels.append(s + [label_data_small_graph.discipline_to_idx["LinearAlgebra"]])
+    for groups_subset in groups_subsets:
+        sets_and_labels.append( groups_subset[1] + [ groups_subset[0]])
     return sets_and_labels
 
 
@@ -125,7 +131,7 @@ def to_pairs(matrices, labels_dict):
 
 
 def read_ae_matrix():
-    ae_file = open(os.path.join("small_graph", "Itay_emb"), "r")
+    ae_file = open(os.path.join("small_graph", "projected_graph"), "r")
     ae_lol = []  # list of lists
     for line in ae_file.readlines():
         ln = line.split(" ")
@@ -183,4 +189,5 @@ def ae_to_distance(mat1, mat2, metric='euclidean', method='avg', cov=None):
 
 
 if __name__ == '__main__':
+
     distances_distribution()

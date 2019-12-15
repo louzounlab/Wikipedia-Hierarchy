@@ -51,23 +51,11 @@ def check_no_sons():
         sons2 = cursor.fetchall()
         print(len(sons2), son)
 
-   
-def func2():
-    with open('tree.pkl', 'rb' ) as f:
-        tree = pickle.load(f)
-    print("loaded")
-    print( tree.neighbors(12606057 ))
-    #for i in list1:
-     #   sqlstr= "select * from page where page_id = %s"
-      #  cursor.execute(sqlstr, (i,))
-       # l = cursor.fetchall()
-        #print(l)
-        
-
-conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
-cursor = conn.cursor()
-create_tree()
-#check_no_sons()
+if __name__ == '__main__':
+    conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
+    cursor = conn.cursor()
+    create_tree()
+    #check_no_sons()
 
 
-conn.close()
+    conn.close()

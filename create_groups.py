@@ -117,23 +117,24 @@ def transfer_version_nx():
     g2= nx.read_edgelist("directed_graph_4_afterchange.edgelist",create_using=nx.DiGraph())
     
 
+if __name__ == '__main__':
 
-conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
-cursor = conn.cursor()
-ids_14 = [736492,722408,1203410,1516113,874722,729377,1399912,46564979,32187902,24238485,21573294,58114046,12606057,4309562]
-ids_4 = [690672, 690777,34511514,782015]
-names = create_names(ids_4)
-create_groups("4_groups", names)
-create_oneway_graph("4_groups")
-from_list_to_nx("4_groups")
-transfer_version_nx()
+    conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
+    cursor = conn.cursor()
+    ids_14 = [736492,722408,1203410,1516113,874722,729377,1399912,46564979,32187902,24238485,21573294,58114046,12606057,4309562]
+    ids_4 = [690672, 690777,34511514,782015]
+    names = create_names(ids_4)
+    create_groups("4_groups", names)
+    create_oneway_graph("4_groups")
+    from_list_to_nx("4_groups")
+    transfer_version_nx()
 
-#check_no_sons()         
-#find_leafs()
-#check()
-#transfer_version_nx()
+    #check_no_sons()         
+    #find_leafs()
+    #check()
+    #transfer_version_nx()
 
 
-conn.close()
+    conn.close()
 
 

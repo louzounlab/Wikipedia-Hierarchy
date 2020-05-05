@@ -1,7 +1,7 @@
 #### Full explanation can be found at the attached pdf file - Building the Wikipedia Hierarchy.pdf
 
 
-# Hierarchy Clustering
+# Hierarchy Clustering:
 Building a model based on Wikipedia's hierarchy data to define metric on graph groups based on a connected tree.
 
 Useage:

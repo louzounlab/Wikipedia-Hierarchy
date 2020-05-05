@@ -39,10 +39,11 @@ def creategraph():
 
 
 
+if __name__ == '__main__':
 
-conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
-cursor = conn.cursor()
+    conn = MySQLdb.connect('localhost','root','webweb', 'WIKI')
+    cursor = conn.cursor()
 
-creategraph()          
+    creategraph()          
 
-conn.close()
+    conn.close()
